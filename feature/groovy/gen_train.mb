@@ -1,0 +1,125 @@
+
+
+dsName = "Train"
+dsName = "Valid"
+// dsName = "Train_dupOnly"
+
+highCounts = [:]
+lowCounts = [:]
+
+papers = [:]
+ds = app.data.open(source:"../data/${dsName}.mbd")
+for(r in ds) {
+id = r.paperId as int
+papers.put(id, new ArrayList())
+}
+
+
+paperIds = [:]
+ds = app.data.open(source: "../rawData/Paper.mbd")
+for(r in ds){
+  id = r.Id as int
+  year = r.Year as int
+  if(papers.containsKey(id))
+   paperIds.put(id, r)
+}
+
+conferenceIds = [:]
+ds = app.data.open(source: "../rawData/Conference.mbd")
+for(r in ds){
+  id = r.Id as int
+   conferenceIds.put(id, r.FullName)
+}
+
+journalIds = [:]
+ds = app.data.open(source: "../rawData/Journal.mbd")
+for(r in ds){
+  id = r.Id as int
+   journalIds.put(id, r.FullName)
+}
+
+authorIds = [:]
+ds = app.data.open(source: "../rawData/Author.mbd")
+for(r in ds){
+  id = r.Id as int
+  affiliation = r.Affiliation
+   authorIds.put(id, r)
+}
+
+
+
+ds = app.data.open(source: "../rawData/PaperAuthor.mbd")
+for(r in ds) {
+  paperId = r.PaperId as int
+  authorId = r.AuthorId
+  if(papers.containsKey(paperId))
+    papers.get(paperId).add(r)  
+}
+
+
+
+
+
+ds = app.data.open(source:"../data/${dsName}.mbd")
+
+
+ds2 = app.data.create("${dsName}.mbd", true) 
+// random = new Random(100)
+i=0
+for(r in ds) {
+  author = r.id as int
+  paper = r.paperId as int
+ 
+ 
+  
+  paperInfo = paperIds.get(paper)
+  r.Year = paperInfo.Year
+  
+   if(r.Year > 2013) r.Year = -1
+   
+  r.ConferenceName = conferenceIds.get(paperInfo.ConferenceId as int)
+  r.JournalName = journalIds.get(paperInfo.JournalId as int)
+  r.Title = paperInfo.Title
+  r.Keyword = paperInfo.Keyword
+  
+  r.authorName = authorIds.get(author).get("Name")
+  r.authorAffiliation = authorIds.get(author).get("Affiliation") 
+  
+  
+  rows = papers.get(paper)
+  
+  names = new ArrayList()
+  
+  affiliations = ""
+  numCurAuthor = 0
+  
+   paperAuthors = new HashSet()
+ 
+  for(row in rows) {
+     id = row.AuthorId as int
+     names.add(row.Name)  
+     affiliations += row.Affiliation + ","
+     if(id == author)
+      numCurAuthor ++
+      paperAuthors.add(id)
+  }
+  
+    numAuthors = paperAuthors.size()
+     r.numAuthors = numAuthors
+  
+  
+  
+   r.numCurAuthor = numCurAuthor
+   r.paperAffiliations = affiliations
+    r.paperNames = names
+    
+    
+  
+  ds2.add(r)
+  
+  if(++i % 10000 ==0)
+    app.logger.info("processed rows: " + i)
+  
+}
+
+ds2.save()

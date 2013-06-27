@@ -1,0 +1,117 @@
+requires(classpath: 'c:/kdd2013/kdd2013.jar') 
+import xing.kdd2013.MatchAffiliation2
+import xing.kdd2013.Match0
+
+dsName = "Train"
+// dsName = "Valid"
+// dsName = "Train_dupOnly"
+
+
+ds = app.data.open(source: "../rawData/Author.mbd")
+authorAFs = [:]
+for(r in ds) {
+  id = r.Id as int
+  affiliation = r.Affiliation
+  
+  if(affiliation.length()>0)
+  authorAFs.put(id, affiliation)
+}
+
+
+papers = [:]
+ds = app.data.open(source:"../data/${dsName}.mbd")
+for(r in ds) {
+id = r.paperId as int
+papers.put(id, new ArrayList())
+}
+
+coauthors = new HashSet();
+
+ds = app.data.open(source: "../rawData/PaperAuthor.mbd")
+for(r in ds) {
+  paperId = r.PaperId as int
+  authorId = r.AuthorId as int
+  if(papers.containsKey(paperId)) {
+    papers.get(paperId).add(r)  
+      coauthors.add(authorId)
+    }
+}
+
+coauthorAF = [:]
+for(r in ds) {
+   authorId = r.AuthorId as int
+   affiliation = r.Affiliation
+   if(affiliation == null || affiliation.length()==0) continue
+   if(coauthorAF.containsKey(authorId))
+      coauthorAF.get(authorId).add(affiliation)
+    else {
+       coauthorAF.put(authorId, new HashSet())
+       coauthorAF.get(authorId).add(affiliation)
+   }
+}
+
+app.logger.info("related coauthors: " + coauthors.size())
+
+
+
+dsTrain = app.data.open(source:"${dsName}.mbd")
+
+dsOut = app.data.create("${dsName}_coauthorAFMatch3.mbd", true)
+i = 0
+for(r in dsTrain) {
+
+ author = r.id as int
+  paper = r.paperId as int
+  
+  rows = papers.get(paper)
+  
+   match = coauthorAF(author, rows, r.authorAffiliation, r.authorName)
+
+    dsOut.add([id:r.id, paperId:r.paperId, AF_matched_coauthors2: match.match, AF_matched_coauthors2_detail: match.matchDetail])
+    
+     if(++i %10000 ==0)
+      app.logger.info("recs processed: " + i)
+}
+
+dsOut.save()
+
+
+// use AFs from all paperAuthor.
+Map coauthorAF(int authorId, List rows, String authorAffiliation, String authorName) {
+
+  
+   if(authorAffiliation.length()==0) {
+      return [match: -1, matchDetail: ""]
+   }
+   
+  
+   match = 0
+   
+   matchDetail = ""
+   authorName = Match0.cleanName2(authorName)
+   for(row in rows) {   // 
+       id = row.AuthorId as int
+        if(id == authorId)  continue;
+         if(!coauthorAF.containsKey(id)) continue
+         
+         // name = row.Name
+         // name = Match0.cleanName2(name)
+         
+         // if(Match0.matchNameFast2(authorName, name)!=-1) continue 
+         
+         for(affiliation in coauthorAF.get(id)) {
+           
+           matched = MatchAffiliation2.fuzzyMatch(authorAffiliation, affiliation)
+      
+          if(matched.size()>0) {
+           match ++
+           matchDetail=matched.toString()
+           break    
+          }
+         }
+   }
+ 
+   
+   return [match: match, matchDetail: matchDetail]
+}
+

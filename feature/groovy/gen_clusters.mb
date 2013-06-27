@@ -1,0 +1,18 @@
+requires(classpath: 'c:/kdd2013/kdd2013.jar') 
+import xing.kdd2013.Cluster0
+
+dsName = "Train"
+// dsName = "Valid"
+// dsName = "Train_dupOnly"
+
+
+
+dsPaper = app.data.open(source: "../rawData/Paper.mbd")
+dsTrain = app.data.open(source:"${dsName}.mbd", vars:"id paperId authorName numCurAuthor paperNames") 
+
+dsOut = "${dsName}_clusters.mbd"
+
+Cluster0.genClusterVars(dsPaper, dsTrain, dsOut)
+
+
+

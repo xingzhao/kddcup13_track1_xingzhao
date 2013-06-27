@@ -1,0 +1,119 @@
+requires(classpath: 'c:/kdd2013/kdd2013.jar') 
+import xing.kdd2013.Match0
+import xing.kdd2013.PaperAuthor
+
+dsName = "Train"
+// dsName = "Valid"
+//  dsName = "Train_dupOnly"
+
+// get paper's coauthros and affiliations from the PaperAuthor table
+
+
+ds = app.data.open(source: "../rawData/PaperAuthor.mbd")
+helper = new PaperAuthor(ds, false, true)
+authorPapers = helper.getAuthorPapers()
+
+
+papers = [:]
+ds = app.data.open(source:"../data/${dsName}.mbd")
+for(r in ds) {
+id = r.paperId as int
+papers.put(id, new ArrayList())
+}
+
+ds = app.data.open(source: "../rawData/PaperAuthor.mbd")
+for(r in ds) {
+  paperId = r.PaperId as int
+  authorId = r.AuthorId
+  if(papers.containsKey(paperId))
+    papers.get(paperId).add(r)  
+}
+
+
+
+ds = app.data.open(source:"${dsName}.mbd")
+
+
+ds2 = app.data.create("${dsName}_nameMatch3.mbd", true) 
+
+
+i = 0
+for(r in ds) {
+  author = r.id as int
+  paper = r.paperId as int
+  numCurAuthor = r.numCurAuthor as int
+  
+  authorAffiliation = r.authorAffiliation
+
+  rows = papers.get(paper)
+  
+  names = new ArrayList()
+  
+ 
+
+   // rec = [id:r.id, paperId:r.paperId, target:r.target, weight:r.weight, numAuthors:r.numAuthors];
+  rec = [id: r.id, paperId:r.paperId]
+
+    matchs = matchName(author, rows, r.authorName, authorAffiliation)
+    rec.putAll(matchs)
+
+    
+ ds2.add(rec)
+    if(++i %10000 ==0)
+      app.logger.info("recs processed: " + i)
+}
+
+ ds2.save()
+
+
+
+
+Map matchName(int authorId, List rows, String authorName, String authorAffiliation) {
+   nameInfos = [:]
+   authorName = Match0.cleanName2(authorName)
+   
+   for(row in rows) {
+       name = row.Name
+       name = Match0.cleanName2(name)
+       id = row.AuthorId as int
+       
+       if(id != authorId) {
+          if(!nameInfos.containsKey(id))
+          nameInfos.put(id, new ArrayList())
+            nameInfos.get(id).add(name)
+       }
+   }
+   
+    nameMatchCount = 0
+  //  app.logger.info(nameInfos.keySet().toString())
+  
+  nameMatchMax = -2
+ nameMatchMax_id = -1
+ nameMatchMax_dup = -1
+     for(id in nameInfos.keySet()) {
+      
+       names = nameInfos.get(id)
+        name = names.last()     // taking last seems to be better? 
+        nameMatch = Match0.matchNameFastSorted2(authorName, name)
+       if(nameMatch != -1) {  
+         nameMatchCount ++
+            if(names.size()>1)
+              nameMatchMax_dup = names.size()
+         }
+         
+         if(nameMatch>nameMatchMax) {
+            nameMatchMax = nameMatch
+              nameMatchMax_id = id
+            }
+           
+     }
+     
+     if(nameInfos.size()==0) nameMatchCount = -1
+     
+     nameMatchMax_idPapers = (nameMatchMax_id== -1)? -1: authorPapers.get(nameMatchMax_id).size()
+   //     nameMatchMax_idPapers = (nameMatchMax== -1)? -2: nameMatchMax_idPapers
+   vars  =   [nameMatchCount:nameMatchCount, nameMatchMax:nameMatchMax,  nameMatchMax_idPapers:nameMatchMax_idPapers, nameMatchMax_dup: nameMatchMax_dup ] 
+   
+   return vars  
+}
+

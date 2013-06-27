@@ -1,0 +1,78 @@
+/** 
+ * Created by Binning Editor by user xzh
+ * on Mon Apr 22 16:20:31 PDT 2013
+ *
+ * NOTE: Changes to this file may be lost or cause the editor to fail.
+ */
+
+
+requires(heap: '1024M')
+Dataset ds = app.data.open(source: '../simple/Train_all.mbd')
+{
+   binaryTarget(vars:'target', high:'1', low:'0', suffix:'')
+}
+
+
+
+// Run auto binning
+results = app.task.autobinner(
+    in: ds,
+    target: 'target ',
+    algorithm: 'FineUnsupervised',
+    weight:'weight',
+    useFactoredCountsCoarse: false)
+
+{
+    fineSpec(
+        maxBins: 5,
+        minThresholdPercentOutcome: 0.2,
+        minThresholdPercentTotal: 0.2,
+        uniqueValueThreshold: 2,
+        binOrder: 'Alpha',
+        sortOrder: 'Ascending')
+
+    inputs(vars: 'numCurAuthor  ', binType: 'numeric3')
+     inputs(vars: 'numAuthors', binType: 'numeric3', requiredKnots: [2,3,4,5,6,7,8,10,15])
+      inputs(vars: 'nameMatchMax ', binType: 'numeric3', requiredKnots: [-1, 0, 1,2,3,4,5, 6, 7, 8, 9])
+ 
+       inputs(vars: 'cluster_keyword ', binType: 'numeric3', requiredKnots: [0, 100, 200, 300, 1000, 1001, 1002, 1003])
+ 
+   //   inputs(vars: 'cluster_coauthor  ', binType: 'numeric3', requiredKnots: [0, 100, 200, 300, 1000, 1001, 1002, 1003])
+              inputs(vars: 'Year', binType: 'numeric3', requiredKnots: [0, 1, 1988, 1994, 1998, 2001, 2003, 2005, 2007, 2008, 2009, 2010, 2011, 2012])
+
+        inputs(vars: 'nameMatchMax_idPapers', binType: 'numeric3' , requiredKnots: [ 0, 2, 3,  4,  7,  14,  27,  62, 110, 417])
+   
+          inputs(vars: 'nameMatchMax_dup ', binType: 'numeric3', requiredKnots: [ 2] )
+                         inputs(vars: 'AF_matched_coauthors2', binType: 'numeric3',  requiredKnots: [0, 1, 2, 4])
+     inputs(vars: 'cluster_title_dup ', binType: 'numeric3', requiredKnots: [0, 100, 200, 300, 900, 1000, 1001, 1002, 1003]) // 1003 better than 1005
+     inputs(vars: 'paperCount', binType: 'numeric3', requiredKnots: [2])
+}
+
+lib = results.lib
+binning = app.binning.numeric()
+
+binning.addBin("-3")
+binning.addBin("-2")
+binning.addBin("1,4,8")
+binning.addBin('*e')
+
+lib.put("nameMatchMax2", binning)
+
+binning = app.binning.numeric()
+
+binning.addBin("-1")
+binning.addBin("1000")
+binning.addBin("[1002, +)")
+binning.addBin('*e')
+
+lib.put("cluster_coauthor", binning)
+
+
+
+
+
+
+
+
+
+results.lib.saveAs('../simple/Train.mbbin')

@@ -1,0 +1,97 @@
+requires(classpath: 'c:/kdd2013/kdd2013.jar') 
+import xing.kdd2013.Match0
+import xing.kdd2013.PaperAuthor
+
+dsName = "Train"
+// dsName = "Valid"
+
+// get paper's coauthros and affiliations from the PaperAuthor table
+
+
+papers = [:]
+ds = app.data.open(source:"../data/${dsName}.mbd")
+for(r in ds) {
+id = r.paperId as int
+papers.put(id, new ArrayList())
+}
+
+ds = app.data.open(source: "../rawData/PaperAuthor.mbd")
+for(r in ds) {
+  paperId = r.PaperId as int
+  authorId = r.AuthorId
+  if(papers.containsKey(paperId))
+    papers.get(paperId).add(r)  
+}
+
+
+
+ds = app.data.open(source:"${dsName}.mbd")
+
+
+ds2 = app.data.create("${dsName}_nameMax2", true) 
+
+
+i = 0
+for(r in ds) {
+  author = r.id as int
+  paper = r.paperId as int
+  
+  rows = papers.get(paper)
+  
+  names = new ArrayList()
+  
+ 
+
+   // rec = [id:r.id, paperId:r.paperId, target:r.target, weight:r.weight, numAuthors:r.numAuthors];
+  rec = [id: r.id, paperId:r.paperId]
+
+    newVar = newVar(author, r.authorName, r.authorAffiliation, rows)
+    rec.putAll(newVar)
+
+   
+    
+ ds2.add(rec)
+    if(++i %10000 ==0)
+      app.logger.info("recs processed: " + i)
+}
+
+ ds2.save()
+
+Map newVar(int authorId, String authorName, String authorAffiliation, List rows) {
+
+    // names = []
+    authorName = Match0.cleanName2(authorName)
+    names = new HashSet()
+    numCurAuthor = 0
+    for(row in rows) {
+      
+        id = row.AuthorId as int
+        
+        if(id != authorId) continue
+        
+        name = row.Name 
+        numCurAuthor ++
+        name = Match0.cleanName2(name)
+        names.add(name)
+        //  names.add(row.Name)
+    }
+    
+    
+    
+    nameMatchMax2 = -2
+    nameMatchMax2_detail = ""
+    if(numCurAuthor ==1)
+      nameMatchMax2 = -3
+    else {
+        names.remove(authorName)
+        for(name in names) {
+        nameMatchMax2 = Match0.matchNameFastSorted(authorName, name)
+        nameMatchMax2_detail = name
+        break
+        }
+    }
+    
+   
+   
+   return [nameMatchMax2:nameMatchMax2, nameMatchMax2_detail: nameMatchMax2_detail]
+}

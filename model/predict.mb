@@ -1,0 +1,29 @@
+// generate scores.
+
+        
+       scoreName = "simple92"   
+        
+ds = app.data.open(source: '../simple/Valid_all.mbd')
+model = app.result.load(file: "../simple/submit/scorecard.${scoreName}.mbr").model
+
+scores = [:]
+for(r in ds) {
+ id  = r.id as int
+ paperId = r.paperId as int
+ score = model.score(r)
+ if(!scores.containsKey(id))
+   scores.put(id, new HashMap())
+   
+   scores.get(id).put(paperId, score)
+}
+
+
+ds = app.data.open(source: "scores.mbd", access: 'w')
+for(r in ds) {
+ id  = r.id as int
+ paperId = r.paperId as int
+ score = scores.get(id).get(paperId)
+ r.put(scoreName, score)
+}
+
+ds.save()

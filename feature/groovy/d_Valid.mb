@@ -1,0 +1,36 @@
+ds = app.data.open(source: "../rawData/Valid.mbd")
+
+ids = new HashSet()
+
+
+ds2 = app.data.create("../data/Valid.mbd", true)
+
+for(r in ds) {
+  id = r.AuthorId as int
+  
+  papers = r.PaperIds.split(' ')
+  
+  total = papers .size()
+  
+  paperCounts = [:]
+  
+  for(paper in papers ){
+      paperId = paper as int
+      
+      if(!paperCounts.containsKey(paperId))
+      paperCounts.put(paperId, 1)
+      else
+      paperCounts.put(paperId, paperCounts.get(paperId)+1)
+  }
+  
+  
+  row = [id:id, total:total]
+  for(i=0; i<total; i++) {
+     paperId = papers[i] as int
+     row.put("paperId", paperId)
+     row.put("paperCount", paperCounts.get(paperId))
+     ds2.add(row)  
+  }
+}
+
+ds2.save();

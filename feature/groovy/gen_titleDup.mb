@@ -1,0 +1,93 @@
+requires(classpath: 'c:/kdd2013/kdd2013.jar') 
+import xing.kdd2013.Match0
+
+dsName = "Train"
+// dsName = "Valid"
+
+// get paper's coauthros and affiliations from the PaperAuthor table
+
+
+
+ds = app.data.open(source:"${dsName}.mbd")
+
+
+authorTitles = [:]
+authorDupTitles = [:]
+authorTitles2 = [:]
+for(r in ds) {
+  author = r.id as int
+  paper = r.paperId as int
+  Title = r.Title
+  numCurAuthor = r. numCurAuthor as int
+  
+  Title = Match0.cleanTitle(Title)
+  
+  if(Title.length() > 2) {
+      if(!authorTitles.containsKey(author)) 
+       authorTitles.put(author, new HashSet())
+      if(authorTitles.get(author).contains(Title)) {
+          if(!authorDupTitles.containsKey(author))
+            authorDupTitles.put(author, new HashSet())
+          authorDupTitles.get(author).add(Title)
+      }
+       
+       authorTitles.get(author).add(Title)
+       
+      if(numCurAuthor>1) {
+       if(!authorTitles2.containsKey(author)) 
+       authorTitles2.put(author, new HashSet())
+          authorTitles2.get(author).add(Title)
+      }  
+  
+  }
+}
+
+
+app.logger.info("dup title authors: " + authorDupTitles.size())
+
+
+ds = app.data.open(source:"${dsName}_clusterTitle.mbd")
+
+
+ds2 = app.data.create("${dsName}_titleDup", true) 
+
+
+i = 0
+for(r in ds) {
+  author = r.id as int
+  paper = r.paperId as int
+
+  Title = r.Title
+   Title = Match0.cleanTitle(Title)
+  
+  dupTitle = 0
+  if(Title.length()> 2 && authorDupTitles.containsKey(author)) {
+     if(authorDupTitles.get(author).contains(Title))
+       dupTitle = 1
+  }
+  
+  if(dupTitle == 1) {
+     if(r.numCurAuthor>1) dupTitle =3
+     else if(authorTitles2.containsKey(author)&& authorTitles2.get(author).contains(Title))   // dup with another in cluster2. 
+        dupTitle = 2
+     else
+        dupTitle = 1      // 
+  
+  } 
+  
+  cluster_title_dup  = r.cluster_title 
+  
+  if(dupTitle==2) cluster_title_dup = 900
+ 
+ 
+  
+  
+  rec = [id: r.id, paperId:r.paperId, dupTitle:dupTitle, cluster_title_dup:cluster_title_dup] 
+
+ ds2.add(rec)
+    if(++i %10000 ==0)
+      app.logger.info("recs processed: " + i)
+}
+
+ ds2.save()
+

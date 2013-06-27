@@ -1,0 +1,109 @@
+ds = app.data.open(source:'../rawData/Train.mbd', vars:'AuthorId')
+{
+   partition(setid:'setid_1', sets:[70, 30], seed:100)
+   partition(setid:'setid_2', sets:[70, 30], seed:200)
+   partition(setid:'setid_3', sets:[70, 30], seed:300)
+}
+setIds = [:]
+for(r in ds) {
+   id = r.AuthorId as int
+   setIds.put(id, r)
+}
+
+
+
+ds = app.data.open(source: "../rawData/Train.mbd")
+
+
+ds2 = app.data.create("../data/Train.mbd", true)
+
+for(r in ds) {
+  id = r.AuthorId as int
+  deleted = r.ConfirmedPaperIds
+  confirmed = r.DeletedPaperIds
+  
+  
+  
+  deletes = deleted.split(' ')
+  confirms = confirmed.split(' ')
+  
+  deleteSet = new HashSet()
+  confirmSet = new HashSet()
+  
+  paperCounts = [:]
+  all = deleted + " " + confirmed
+  
+  for(paper in all.split(' ')){
+      paperId = paper as int
+      
+      if(!paperCounts.containsKey(paperId))
+      paperCounts.put(paperId, 1)
+      else
+      paperCounts.put(paperId, paperCounts.get(paperId)+1)
+  }
+  
+  
+  for(delete in deletes) {
+    paperId = delete as int
+ 
+  deleteSet.add(paperId)
+  }
+  for(confirm in confirms) {
+   paperId = confirm as int
+  confirmSet.add(paperId)
+  
+  }
+  deleteSize = deleteSet.size()
+  confirmSize = confirmSet.size()
+  
+  totalSet = new HashSet(deleteSet)
+  totalSet.addAll(confirmSet)
+  total = totalSet.size()
+  
+  // remove dup? 
+  
+  dupSet = new HashSet(deleteSet)
+  dupSet.retainAll(confirmSet)
+  
+  
+  row = [id:id, deleteSize:deleteSize, confirmSize:confirmSize, total:total, dupSize: dupSet.size()]
+  r = setIds.get(id)
+  r.remove("AuthorId")
+  row.putAll(r)
+
+  for(paperId in deleteSet) {
+     if(dupSet.contains(paperId)) continue    // skip dup
+     row.put("paperId", paperId)
+     row.put("target", 0)
+     row.put("weight", 1/deleteSize)
+     row.put("paperCount", paperCounts.get(paperId))
+       row.put("mapSize", confirms.size())
+          row.put("mapSize2", confirmSet.size())
+     ds2.add(row)  
+  }
+  
+  
+  for(paperId in confirmSet) {
+     if(dupSet.contains(paperId)) continue   // skip dup
+     row.put("paperId", paperId)
+     row.put("target", 1)
+     row.put("weight", 1/confirmSize)
+   row.put("paperCount", paperCounts.get(paperId))
+    row.put("mapSize", confirms.size())
+       row.put("mapSize2", confirmSet.size())
+     ds2.add(row)  
+  }
+   for(paperId in dupSet) {            // process dup?  
+     row.put("paperId", paperId)
+     row.put("target", 1)
+       row.put("weight", 1/confirmSize)
+     row.put("paperCount", paperCounts.get(paperId))
+      row.put("mapSize", confirms.size())
+         row.put("mapSize2", confirmSet.size())
+     ds2.add(row)  
+  }
+  
+}
+
+
+ds2.save();

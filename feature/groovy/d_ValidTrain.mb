@@ -1,0 +1,70 @@
+
+
+ds = app.data.open(source: "../rawData/ValidSolution.mbd")
+idsSelect = [:]
+mapSizes = [:]
+for(r in ds) {
+  id = r.AuthorId as int
+  papers = r.PaperIds.split(' ')
+  papersSet = new HashSet()
+  for(paper in papers){
+      paperId = paper as int
+      if(!papersSet.contains(paperId))
+     papersSet.add(paperId)
+  }
+  idsSelect.put(id, papersSet)
+  mapSizes.put(id, papers.size())
+}
+
+
+
+ids = new HashSet()
+
+
+ds2 = app.data.create("../data/Valid.mbd", true)
+
+ds = app.data.open(source: "../rawData/Valid.mbd")
+for(r in ds) {
+  id = r.AuthorId as int
+  
+  papers = r.PaperIds.split(' ')
+  paperCounts = [:]
+  for(paper in papers){
+      paperId = paper as int
+      
+      if(!paperCounts.containsKey(paperId))
+      paperCounts.put(paperId, 1)
+      else
+      paperCounts.put(paperId, paperCounts.get(paperId)+1)
+  }
+  
+  papersSelect = idsSelect.get(id)
+  
+  papersSet = new HashSet()
+  
+  for(paper in papers) {
+    papersSet.add(paper as int)
+  }
+  
+  total = papersSet.size()
+  
+  confirm  = papersSelect.size()
+  delete = total - confirm 
+  
+  row = [id:id, total:total]
+  
+  for(paperId in papersSet) {
+     row.put("paperId", paperId)
+     target = papersSelect.contains(paperId)? 1: 0
+     weight = (target == 1)? 1/confirm: 1/delete
+     
+     row.put("target", target)
+     row.put("weight", weight)
+     row.put("paperCount", paperCounts.get(paperId))
+          row.put("mapSize", mapSizes.get(id))
+          row.put("mapSize2", papersSelect.size())
+     ds2.add(row)  
+  }
+}
+
+ds2.save();

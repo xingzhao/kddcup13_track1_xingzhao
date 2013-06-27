@@ -1,0 +1,92 @@
+requires(classpath: 'c:/kdd2013/kdd2013.jar') 
+import  xing.MAP
+
+lib = app.binning.getLibrary("Train.mbbin")
+
+
+
+ dsName = "Train_Valid_all"
+//  dsName = "Valid_all"
+
+ds = app.data.open(source: "${dsName}.mbd", vars: '* !authorNames !authorAffiliations !paperAffiliations') // , filter:'setid_4==2') 
+
+name = "simple"
+setid = null // 'setid_2'
+
+if(setid != null) name +="_" + setid
+
+result = app.task.buildScorecard(
+   
+   saveEnabled: true,
+) { 
+   scorecard(
+    modelName: name,
+    in: ds,
+    target: 'target',
+    binnings: lib,
+    setid: setid,
+    initial: 'numAuthors Year AF_matched_coauthors2  nameMatchMax  nameMatchMax2  nameMatchMax_dup numCurAuthor cluster_coauthor  cluster_title_dup cluster_keyword paperCount nameMatchMax_idPapers', //   
+    objective:'bernoulliLikelihood',
+    weight: 'weight',
+     penalty:1,
+    ) {
+      constraints() {
+         pattern(vars: 'numAuthors', '>': ['1-N']);
+         pattern(vars: 'nameMatchMax_idPapers', '<': ['1-N']);
+        // pattern(vars: 'Year', '<': ['2-N']);
+        
+      
+      }
+    }
+  
+}
+
+
+app.report.scorecard (  in: result, out: "${name}.html")
+
+
+app.logger.info(result.variable.toString())
+
+
+model = result.model
+
+
+// setid = "setid_4"
+map(dsName)
+
+setid = null
+map("Valid_all")
+
+
+void map(String dsName) {
+
+if(setid == null) {
+ds = app.data.open(source: "${dsName}.mbd") {
+}
+map = MAP.calMap(ds, 'id', 'paperId', 'target', model, "mapSize")
+app.logger.info("map " +  map) 
+}
+else {
+
+ds = app.data.open(source: "${dsName}.mbd", filter: "${setid}==1") {
+}
+
+map = MAP.calMap(ds, 'id', 'paperId', 'target', model, "mapSize")
+app.logger.info("map " +  map) 
+
+ds = app.data.open(source: "${dsName}.mbd", filter: "${setid}==2", ) {
+}
+map = MAP.calMap(ds, 'id', 'paperId', 'target', model, "mapSize")
+app.logger.info("map " +  map) 
+
+}
+
+}
+
+
+
+
+
+
+
+

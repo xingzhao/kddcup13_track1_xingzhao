@@ -1,0 +1,13 @@
+import com.fairisaac.mb.api.job.launch.LaunchedJob
+
+
+ job0 = app.job.submit(script: 'gen_train.mb')
+ job1 = app.job.submit(script: 'gen_nameMatch3.mb' , after:job0)
+ job2 = app.job.submit(script: 'gen_clusters.mb' , after: job1)
+ job3 = app.job.submit(script: 'gen_clusterTitle.mb', after: job2)
+ job4 = app.job.submit(script: 'gen_coauthorAFMatch3.mb', after: job3)
+ job5 = app.job.submit(script: 'gen_nameMax2.mb', after: job4)
+ job6 = app.job.submit(script: 'gen_titleDup.mb', after: job5)
+
+
+app.job.waitForChildren()

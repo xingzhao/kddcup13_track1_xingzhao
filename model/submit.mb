@@ -1,0 +1,72 @@
+// generate scores.
+
+import com.fairisaac.mb.common.sort.SortIndirect
+ scoreName = "simple92"
+
+ds = app.data.open(source: 'scores.mbd')
+
+
+scores = [:]
+for(r in ds) {
+ id  = r.id as int
+ paperId = r.paperId as int
+ score = r.get(scoreName)
+ if(!scores.containsKey(id)){
+   scores.put(id,[:])
+ }
+  scores.get(id).put(paperId, score) 
+}
+
+
+file = new File("entry_${scoreName}.csv")
+
+
+ds = app.data.open(source: '../rawData/Valid.mbd')
+
+file.withWriter {
+  it.writeLine("AuthorId,PaperIds")
+  for(r in ds) {
+     id = r.AuthorId as int
+     paperIds = r.PaperIds.split(' ')
+     
+     double[] values = new double[paperIds.length]
+     for(int i=0; i<values.length; i++) {
+         paperId = paperIds[i] as int
+         values[i] = scores.get(id).get(paperIds[i] as int) 
+       values[i] -= paperId * 1e-12     // small id, more confirm?   
+     }
+     
+     int[] indexes = SortIndirect.sortDescending(values)   // sort not stable, how to break ties? 
+     sortedIds = ""
+     dupIds = ""
+     paperIdsSet = new HashSet()
+     for(int i=0; i<values.length; i++) {
+        paperId = paperIds[indexes[i]]
+        if(paperIdsSet.contains(paperId))
+          dupIds += paperId + " "
+        else {
+          paperIdsSet.add(paperId)  
+        sortedIds += paperId + " "
+        }
+     }
+//     if(dupIds.length() > 0)
+  //   app.logger.info(id + "," + dupIds)
+     sortedIds += dupIds
+     
+    it.writeLine(""+ id + "," + sortedIds.trim())
+  }
+}
+
+
+
+
+
+ds = app.data.open(source: "scores.mbd", access: 'w')
+for(r in ds) {
+ id  = r.id as int
+ paperId = r.paperId as int
+ score = scores.get(id).get(paperId)
+ r.put(scoreName, score)
+}
+
+ds.save()
